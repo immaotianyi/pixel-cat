@@ -1,6 +1,6 @@
 /* ============================================
    PIXEL CAT — 8-bit Interactive Pixel Cat Component
-   Version: 2.5.0 (natural speech rhythm + smart bubble positioning)
+   Version: 2.6.0 (stable broadcast mode + smart bubble + transparent bg)
    License: MIT
    ============================================
    Usage: <link rel="stylesheet" href="pixel-cat.css">
@@ -683,14 +683,7 @@
   45%, 100% { opacity: 1; }
 }
 
-/* --- v2.5: speaking body language — subtle micro-motion boost during idle speech --- */
-.cat-interactive.cat-speaking.cat-idle .cat-tail {
-  animation-duration: 2.5s !important;
-}
-.cat-interactive.cat-speaking.cat-idle .cat-whisker-l,
-.cat-interactive.cat-speaking.cat-idle .cat-whisker-r {
-  animation-duration: 1.4s !important;
-}
+/* --- v2.6: speaking body language removed for stability --- */
 
 /* --- purr vibration (hover) --- */
 .cat-interactive.cat-purring { animation: cat-purr 0.08s ease-in-out infinite; }
@@ -764,8 +757,9 @@
    ============================================ */
 .cat-speech {
   position: absolute;
-  top: -48px; left: 50%;
-  transform: translateX(-50%) translateY(6px);
+  bottom: calc(100% + 28px);
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
   background: var(--pc-bg-card, #141428);
   border: 1.5px solid var(--pc-amber, #f59e0b);
   border-radius: 12px;
@@ -776,12 +770,12 @@
   white-space: normal;
   word-break: break-word;
   text-align: center;
-  line-height: 1.4;
+  line-height: 1.5;
   opacity: 0;
   transition: opacity 0.3s, transform 0.3s;
   z-index: 20;
   pointer-events: none;
-  max-width: 200px;
+  max-width: 220px;
   min-width: 20px;
 }
 .cat-speech::after {
@@ -798,18 +792,18 @@
   transform: translateX(-50%) translateY(0);
 }
 
-/* --- v2.5: bubble size variants (auto-sized by text length) --- */
-.cat-bubble-sm { font-size: 0.65rem; padding: 4px 10px; max-width: 130px; border-radius: 10px; }
-.cat-bubble-md { font-size: 0.72rem; padding: 6px 14px; max-width: 180px; border-radius: 12px; }
-.cat-bubble-lg { font-size: 0.78rem; padding: 7px 16px; max-width: 240px; border-radius: 14px; }
-.cat-bubble-wide { max-width: 300px; }
+/* --- v2.6: bubble size variants (auto-sized by text length) --- */
+.cat-bubble-sm { font-size: 0.65rem; padding: 5px 10px; max-width: 140px; border-radius: 10px; }
+.cat-bubble-md { font-size: 0.72rem; padding: 6px 14px; max-width: 190px; border-radius: 12px; }
+.cat-bubble-lg { font-size: 0.78rem; padding: 7px 16px; max-width: 260px; border-radius: 14px; line-height: 1.5; }
+.cat-bubble-wide { max-width: 320px; }
 
-/* --- v2.5: think bubble shape (for question/idea emotes) --- */
+/* --- v2.6: think bubble shape (for question/idea emotes) --- */
 .cat-bubble-shape-think {
-  border-radius: 18px;
+  border-radius: 20px;
   border-style: dashed;
   border-width: 1px;
-  opacity: 0.9;
+  opacity: 0.92;
 }
 .cat-bubble-shape-think::after {
   border-top-color: transparent;
@@ -834,43 +828,43 @@
   opacity: 0.6;
 }
 
-/* --- v2.5: bubble position variants (shift to avoid emote overlap) --- */
+/* --- v2.6: bubble position variants (gentle shift when emote present) --- */
 .cat-bubble-left {
-  left: 0;
+  left: 50%;
   right: auto;
-  transform: translate(-70%, 6px);
+  transform: translateX(calc(-100% - 10px)) translateY(8px);
 }
 .cat-bubble-left::after {
   left: auto;
-  right: 12px;
+  right: 14px;
   transform: none;
 }
 .cat-bubble-left::before {
   left: auto;
-  right: 12px;
+  right: 14px;
   transform: none;
 }
 .cat-interactive.cat-talking .cat-bubble-left {
-  transform: translate(-70%, 0);
+  transform: translateX(calc(-100% - 10px)) translateY(0);
 }
 
 .cat-bubble-right {
-  left: auto;
-  right: 0;
-  transform: translate(70%, 6px);
+  left: 50%;
+  right: auto;
+  transform: translateX(10px) translateY(8px);
 }
 .cat-bubble-right::after {
-  left: 12px;
+  left: 14px;
   right: auto;
   transform: none;
 }
 .cat-bubble-right::before {
-  left: 12px;
+  left: 14px;
   right: auto;
   transform: none;
 }
 .cat-interactive.cat-talking .cat-bubble-right {
-  transform: translate(70%, 0);
+  transform: translateX(10px) translateY(0);
 }
 
 /* ============================================

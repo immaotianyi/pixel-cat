@@ -1,6 +1,6 @@
 /* ============================================
    PIXEL CAT — 8-bit Interactive Pixel Cat
-   Version: 2.5.0 (natural speech rhythm + smart bubble positioning)
+   Version: 2.6.0 (stable broadcast mode + smart bubble + transparent bg)
    License: MIT
    ============================================
    A reusable, zero-dependency pixel cat component.
@@ -292,9 +292,10 @@
   };
   var EMOTE_KEYS = Object.keys(EMOTE_ACTIONS);
 
-  /* --- v2.0: Action density thresholds --- */
-  var DENSITY_LOW = 0.4;    // below: no action change
-  var DENSITY_MID = 0.7;    // mid: micro-expression only; high: full switch
+  /* --- v2.6: Action density thresholds (raised for broadcast stability) --- */
+  var DENSITY_LOW = 0.6;    // below: no action change (raised from 0.4 to reduce jitter)
+  var DENSITY_MID = 0.8;    // mid: micro-expression only; high: full switch (raised from 0.7)
+  var DENSITY_EMOTE = 0.75; // emote threshold (higher to prevent spamming ? !)
 
   /* --- Semantic Rules: keyword → action mapping (expanded v2.0) --- */
   var SEMANTIC_RULES = [
@@ -1259,9 +1260,140 @@
 
     this._isSpeaking = true;
     this._speakSpeed = speed;
+    this._bubbleSide = undefined;  // reset bubble side for new speak session
 
     // Build analysis queue: combine markup + semantic analysis
     this._prepareAnalyzedQueue(parsedLines, speed, opts);
+  };
+
+  /**
+   * v2.6: Speak with precise timeline control (for video sync / transparent overlay).
+   * Uses requestAnimationFrame for rock-solid timing accuracy.
+   * Each item fires at its absolute time t (seconds from start).
+   * @param {Array} timeline - [{ t: startSeconds, text, emote, pose, state }]
+   */
+  PixelCat.prototype.speakTimed = function (timeline, opts) {
+    opts = opts || {};
+    var self = this;
+
+    this.stopSpeak();
+    if (!timeline || timeline.length === 0) return;
+
+    this._isSpeaking = true;
+    this._bubbleSide = undefined;
+    this._speakSpeed = 1.0;
+
+    // Parse & filter
+    var items = [];
+    for (var i = 0; i < timeline.length; i++) {
+      var line = timeline[i];
+      var parsed = parseMarkupTag(line.text || '');
+      var text = parsed.text.trim();
+      if (!text) continue;
+      items.push({
+        t: line.t || 0,
+        text: text,
+        emote: line.emote || parsed.emote || null,
+        pose: line.pose || parsed.pose || null,
+        state: line.state || null
+      });
+    }
+    items.sort(function (a, b) { return a.t - b.t; });
+
+    // Pre-compute durations
+    for (var j = 0; j < items.length; j++) {
+      if (j + 1 < items.length) {
+        items[j].dur = Math.max(500, (items[j + 1].t - items[j].t) * 1000 - 80);
+      } else {
+        items[j].dur = 2500;
+      }
+    }
+
+    var startTs = performance.now();
+    var rafId = null;
+    var mouthTimers = [];
+    var finished = false;
+    var currentIdx = 0;
+
+    function clearAllMouthTimers() {
+      mouthTimers.forEach(function (id) { clearTimeout(id); });
+      mouthTimers = [];
+    }
+
+    function fireItem(item, idx) {
+      // Position bubble
+      self._adaptBubblePosition(item.emote, item.text);
+
+      // Stable idle state
+      self.setState('idle');
+      self._lastAction = 'idle';
+
+      if (item.pose && item.pose !== self._currentPose) {
+        self.setPose(item.pose);
+      }
+      if (item.emote) {
+        self.triggerEmote(item.emote);
+      }
+
+      var bubble = self.el.querySelector('.cat-speech');
+      if (bubble) bubble.textContent = item.text;
+      self.el.classList.add('cat-talking');
+      self.el.classList.add('cat-speaking');
+
+      if (opts.onProgress) {
+        opts.onProgress({ index: idx, total: items.length, text: item.text, t: item.t });
+      }
+
+      // Mouth stops after duration
+      clearAllMouthTimers();
+      var mt = setTimeout(function () {
+        self.el.classList.remove('cat-talking');
+      }, item.dur);
+      mouthTimers.push(mt);
+    }
+
+    function tick(now) {
+      if (!self._isSpeaking || finished) return;
+      var elapsed = (now - startTs) / 1000;
+
+      // Fire next item if its time has come
+      while (currentIdx < items.length && items[currentIdx].t <= elapsed) {
+        fireItem(items[currentIdx], currentIdx);
+        currentIdx++;
+      }
+
+      // Check if all done
+      if (currentIdx >= items.length) {
+        var last = items[items.length - 1];
+        if (elapsed > last.t + last.dur / 1000 + 0.8) {
+          finished = true;
+          self._isSpeaking = false;
+          self.el.classList.remove('cat-speaking');
+          self.el.classList.remove('cat-talking');
+          self.setState('idle');
+          self.clearPose();
+          var bubble = self.el.querySelector('.cat-speech');
+          if (bubble) bubble.textContent = '';
+          if (self._emoteTimer) {
+            clearTimeout(self._emoteTimer);
+            if (self._emoteLayer) {
+              self._emoteLayer.className = 'cat-emote-layer';
+              self._emoteLayer.innerHTML = '';
+            }
+          }
+          clearAllMouthTimers();
+          if (opts.onComplete) opts.onComplete();
+          return;
+        }
+      }
+
+      rafId = requestAnimationFrame(tick);
+    }
+
+    rafId = requestAnimationFrame(tick);
+
+    this._timedRafId = rafId;
+    this._timedMouthClear = clearAllMouthTimers;
   };
 
   /**
@@ -1364,23 +1496,21 @@
         finalPose = self._currentPose;  // keep current (persist)
       }
 
-      // 2. STATE: only switch if confidence high enough (density)
+      // 2. STATE: v2.6 — default to idle for stable speaking, only switch on VERY strong signals
       var finalState = 'idle';
       if (auto.type === 'state' && auto.confidence >= DENSITY_MID) {
         finalState = auto.action;
-      } else if (auto.type === 'state' && auto.confidence >= DENSITY_LOW) {
-        // Micro-expression: curious tilt for low-mid confidence
-        finalState = self._lastAction !== 'idle' ? 'idle' : 'curious';
       } else {
-        finalState = self._lastAction;  // keep current state
+        finalState = 'idle';  // stay calm and centered while speaking — no curious tilt spam
       }
 
       // 3. EMOTE: auto > manual (auto fires first, manual as supplement)
+      // v2.6: raised threshold for emotes to prevent over-reacting
       var finalEmote = null;
-      if (auto.type === 'emote' && auto.confidence >= DENSITY_LOW) {
+      if (auto.type === 'emote' && auto.confidence >= DENSITY_EMOTE) {
         finalEmote = auto.action;  // AI auto-fires
       } else if (manualEmote) {
-        finalEmote = manualEmote;  // manual supplement
+        finalEmote = manualEmote;  // manual supplement (markup tags always work)
       }
 
       // Calculate duration with punctuation-aware timing
@@ -1462,56 +1592,56 @@
   };
 
   /**
-   * Smart bubble positioning:
-   * - When emote is active above head, shift bubble left/right to avoid overlap
+   * v2.6 Smart bubble positioning:
+   * - Default: always CENTERED above cat's head (stable, no wobble)
+   * - When emote is active AND text is long enough to overlap, shift slightly
    * - Auto-size bubble based on text length
-   * - Auto-pick bubble shape variant
+   * - Bubble sits high enough to never cover the cat
    */
   PixelCat.prototype._adaptBubblePosition = function (emote, sentence) {
     var bubble = this.el.querySelector('.cat-speech');
     if (!bubble) return;
 
-    // Remove all position/size classes first
+    // Remove all position/size/shape classes first
     bubble.classList.remove(
       'cat-bubble-left', 'cat-bubble-center', 'cat-bubble-right',
       'cat-bubble-sm', 'cat-bubble-md', 'cat-bubble-lg',
       'cat-bubble-wide', 'cat-bubble-tall', 'cat-bubble-shape-think'
     );
 
-    // Position: if emote is showing at center-top, shift bubble sideways
-    var pos;
-    if (emote) {
-      // Alternate left/right based on sentence hash for visual variety
-      var hash = 0;
-      for (var i = 0; i < sentence.length; i++) {
-        hash = ((hash << 5) - hash + sentence.charCodeAt(i)) | 0;
+    // ALWAYS center by default — stable, no wobble
+    var pos = 'center';
+
+    // Only shift if emote is active AND text is long (>10 chars) where overlap is possible
+    // Even then, use a gentle offset, not full left/right
+    if (emote && sentence.length > 10) {
+      // Use consistent side per speak session (stored on instance), not per-sentence
+      if (this._bubbleSide === undefined) {
+        this._bubbleSide = Math.random() < 0.5 ? 'left' : 'right';
       }
-      pos = (hash % 2 === 0) ? 'left' : 'right';
-    } else {
-      pos = 'center';
+      pos = this._bubbleSide;
     }
+
     bubble.classList.add('cat-bubble-' + pos);
 
     // Auto-size: based on character count
     var len = sentence.length;
     var size;
-    if (len <= 6) {
+    if (len <= 5) {
       size = 'sm';
-    } else if (len <= 14) {
+    } else if (len <= 12) {
       size = 'md';
+    } else if (len <= 20) {
+      size = 'lg';
     } else {
       size = 'lg';
+      bubble.classList.add('cat-bubble-wide');
     }
     bubble.classList.add('cat-bubble-' + size);
 
-    // Shape variant: for thinking/curious states, add rounded "think bubble" style
+    // Shape variant: for question/idea emotes, use think bubble
     if (emote === 'question' || emote === 'idea') {
       bubble.classList.add('cat-bubble-shape-think');
-    }
-
-    // Wide variant for long text
-    if (len > 18) {
-      bubble.classList.add('cat-bubble-wide');
     }
   };
 
@@ -1583,6 +1713,15 @@
   PixelCat.prototype.stopSpeak = function () {
     clearTimeout(this._speakTimer);
     clearTimeout(this._speechTimer);
+    // v2.6: cancel timed playback (rAF + mouth timers)
+    if (this._timedRafId) {
+      cancelAnimationFrame(this._timedRafId);
+      this._timedRafId = null;
+    }
+    if (this._timedMouthClear) {
+      this._timedMouthClear();
+      this._timedMouthClear = null;
+    }
     this._speakQueue = [];
     this._isSpeaking = false;
     this.el.classList.remove('cat-speaking');
