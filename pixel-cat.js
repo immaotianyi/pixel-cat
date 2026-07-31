@@ -1,6 +1,6 @@
 /* ============================================
    PIXEL CAT — 8-bit Interactive Pixel Cat
-   Version: 1.2.0 (mouth speaking animation)
+   Version: 1.4.0 (semantic speak + demo UI)
    License: MIT
    ============================================
    A reusable, zero-dependency pixel cat component.
@@ -144,6 +144,25 @@
     { cls: 'cat-happy', label: '开心 · Happy', sub: '跳舞 · 点击触发' }
   ];
 
+  /* --- Semantic Rules: keyword → action mapping --- */
+  var SEMANTIC_RULES = [
+    { keywords: ['开心', '高兴', '哈哈', '好棒', '太好了', '耶', '★', '♥', '喜欢', '爱', '开心', '快乐', '兴奋'], action: 'happy', weight: 1.0 },
+    { keywords: ['你好', '嗨', 'hello', 'hi', '早上好', '晚上好', '你好呀', '嘿', '欢迎'], action: 'curious', weight: 0.7 },
+    { keywords: ['？', '?', '什么', '为什么', '怎么', '哪里', '谁', '何时', '难道', '是不是', '对吗'], action: 'curious', weight: 0.6 },
+    { keywords: ['困', '累', '睡', 'zz', 'zZ', '休息', '晚安', '疲惫', '犯困', '打哈欠', '梦境'], action: 'sleeping', weight: 0.8 },
+    { keywords: ['注意', '危险', '小心', '警告', '警惕', '快跑', '不好', '糟糕', '紧急'], action: 'alert', weight: 0.9 },
+    { keywords: ['走', '跑', '来', '去', '散步', '出门', '出发', '前进', '移动', '快走'], action: 'walking', weight: 0.7 },
+    { keywords: ['吃', '饿', '美味', '鱼', '猫粮', '零食', '小鱼干', '罐头', '饿了', '馋'], action: 'happy', weight: 0.6 },
+    { keywords: ['不', '别', '不要', '不行', '拒绝', '不可以', '不能'], action: 'alert', weight: 0.5 },
+    { keywords: ['舒服', '摸摸', '呼噜', '蹭蹭', '撒娇', '亲亲', '抱抱'], action: 'happy', weight: 0.5 },
+    { keywords: ['什么', '咦', '嗯', '哦', '呀', '啊'], action: 'curious', weight: 0.3 },
+  ];
+
+  /* --- Speaking speed: ms per character --- */
+  var MS_PER_CHAR = 110;        // 每字时长，略快更自然
+  var SENTENCE_GAP = 200;       // 句间停顿（呼吸感，像人换气）
+  var TRANSITION_GAP = 150;     // 动作过渡（情绪切换的自然瞬间）
+
   /* ============================================
      3. PIXEL CAT CLASS
      ============================================ */
@@ -182,6 +201,13 @@
     this._cycleTimer = null;
     this._idleTimer = null;
     this._isInteracting = false;
+
+    // Speak system state
+    this._speakQueue = [];
+    this._speakTimer = null;
+    this._isSpeaking = false;
+    this._lastAction = 'idle';
+    this._semanticAnalyzer = null;  // optional external AI analyzer
 
     this.speeches = opts.speeches || DEFAULT_SPEECHES;
     this.idlePhrases = opts.idlePhrases || DEFAULT_IDLE_PHRASES;
@@ -460,13 +486,243 @@
     if (idlePhrases) this.idlePhrases = idlePhrases;
   };
 
+  /* ============================================
+     4.2 SEMANTIC ENGINE + SPEAK SYSTEM
+     ============================================ */
+
+  /**
+   * Set an external semantic analyzer function.
+   * When set, this overrides the local keyword matcher.
+   * @param {Function|null} analyzer  fn(sentence) → Promise<{action, confidence}>
+   */
+  PixelCat.prototype.setSemanticAnalyzer = function (analyzer) {
+    this._semanticAnalyzer = typeof analyzer === 'function' ? analyzer : null;
+  };
+
+  /**
+   * Analyze a sentence and determine the best matching action.
+   * Uses external AI analyzer if set, otherwise falls back to local keyword matching.
+   * @param {string} sentence
+   * @returns {Object} { action: string, confidence: number }
+   */
+  PixelCat.prototype._analyzeSemantic = function (sentence) {
+    // External analyzer (async path handled in _prepareSpeakQueue)
+    if (this._semanticAnalyzer) {
+      return this._semanticAnalyzer(sentence);
+    }
+    // Local keyword matching
+    return this._localSemanticMatch(sentence);
+  };
+
+  /**
+   * Local keyword-based semantic matcher.
+   * @param {string} sentence
+   * @returns {Object} { action: string, confidence: number }
+   */
+  PixelCat.prototype._localSemanticMatch = function (sentence) {
+    var best = { action: 'idle', confidence: 0 };
+    var lower = sentence.toLowerCase();
+
+    for (var i = 0; i < SEMANTIC_RULES.length; i++) {
+      var rule = SEMANTIC_RULES[i];
+      for (var j = 0; j < rule.keywords.length; j++) {
+        var kw = rule.keywords[j].toLowerCase();
+        if (lower.indexOf(kw) !== -1) {
+          if (rule.weight > best.confidence) {
+            best = { action: rule.action, confidence: rule.weight };
+          }
+        }
+      }
+    }
+    return best;
+  };
+
+  /**
+   * Speak a block of text. Splits by newlines into sentences,
+   * plays each with mouth animation + semantic actions.
+   * Like a person talking: mouth moves continuously, body language follows content.
+   *
+   * @param {string} text     Multi-line text, each line = one sentence
+   * @param {Object} opts     { onProgress, onComplete, speed }
+   */
+  PixelCat.prototype.speak = function (text, opts) {
+    opts = opts || {};
+    var speed = opts.speed || 1.0;
+    var self = this;
+
+    // Cancel any ongoing speech
+    this.stopSpeak();
+
+    // Split by newlines, filter empty lines
+    var lines = text.split(/\r?\n/).filter(function (l) {
+      return l.trim().length > 0;
+    });
+
+    if (lines.length === 0) return;
+
+    this._isSpeaking = true;
+    this._speakQueue = lines;
+    this._speakSpeed = speed;
+
+    // Prepare semantic analysis for all lines (handles async external analyzer)
+    this._prepareSpeakQueue(lines, speed, opts);
+  };
+
+  /**
+   * Prepare the speak queue with semantic analysis.
+   * Supports both sync (local) and async (AI API) analyzers.
+   */
+  PixelCat.prototype._prepareSpeakQueue = function (lines, speed, opts) {
+    var self = this;
+    var analyses = [];
+
+    // Run semantic analysis on all lines
+    for (var i = 0; i < lines.length; i++) {
+      var result = this._analyzeSemantic(lines[i]);
+      analyses.push(result);
+    }
+
+    // Check if any result is a Promise (async analyzer)
+    var hasPromise = analyses.some(function (a) {
+      return a && typeof a.then === 'function';
+    });
+
+    if (hasPromise) {
+      // Wait for all async analyses, then start playback
+      Promise.all(analyses).then(function (resolved) {
+        self._startPlayback(lines, resolved, speed, opts);
+      }).catch(function () {
+        // Fallback: use local matching
+        var fallback = lines.map(function (l) { return self._localSemanticMatch(l); });
+        self._startPlayback(lines, fallback, speed, opts);
+      });
+    } else {
+      this._startPlayback(lines, analyses, speed, opts);
+    }
+  };
+
+  /**
+   * Start sequential playback of sentences with actions.
+   * Core choreography: mouth stays on throughout, actions change per sentence.
+   */
+  PixelCat.prototype._startPlayback = function (lines, analyses, speed, opts) {
+    var self = this;
+    var idx = 0;
+
+    function playNext() {
+      if (idx >= lines.length) {
+        // All done — return to idle, stop mouth
+        self._isSpeaking = false;
+        self.el.classList.remove('cat-speaking');
+        self.el.classList.remove('cat-talking');
+        self.setState('idle');
+        self._lastAction = 'idle';
+        if (opts.onComplete) opts.onComplete();
+        return;
+      }
+
+      var sentence = lines[idx].trim();
+      var analysis = analyses[idx] || { action: 'idle', confidence: 0 };
+      var action = analysis.action || 'idle';
+      var confidence = analysis.confidence || 0;
+
+      // Calculate duration based on text length
+      var duration = Math.max(800, sentence.length * MS_PER_CHAR / speed);
+
+      // Progress callback
+      if (opts.onProgress) {
+        opts.onProgress({ index: idx, total: lines.length, text: sentence, action: action });
+      }
+
+      // Choreography: transition to action + start mouth
+      self._performSentence(sentence, action, duration, function () {
+        idx++;
+        // Brief gap between sentences (mouth closes, natural breath)
+        self._speakTimer = setTimeout(playNext, SENTENCE_GAP);
+      });
+    }
+
+    playNext();
+  };
+
+  /**
+   * Perform one sentence: set action state + mouth speaking + bubble text.
+   * The "coherence" layer: smooth transitions between actions.
+   */
+  PixelCat.prototype._performSentence = function (sentence, action, duration, done) {
+    var self = this;
+
+    // If action differs from last, insert brief idle transition for smoothness
+    if (action !== this._lastAction && this._lastAction !== 'idle') {
+      // Brief return to idle (natural breath between different emotions)
+      this.setState('idle');
+      this._lastAction = 'idle';
+
+      // After transition gap, set the new action and speak
+      this._speakTimer = setTimeout(function () {
+        self._executeSentence(sentence, action, duration, done);
+      }, TRANSITION_GAP);
+    } else {
+      this._executeSentence(sentence, action, duration, done);
+    }
+  };
+
+  /**
+   * Execute a single sentence: set state + show bubble + mouth animation.
+   */
+  PixelCat.prototype._executeSentence = function (sentence, action, duration, done) {
+    var self = this;
+
+    // Set body language action (curious/happy/alert/sleeping/walking/idle)
+    this.setState(action);
+    this._lastAction = action;
+
+    // Show speech bubble
+    var bubble = this.el.querySelector('.cat-speech');
+    if (bubble) bubble.textContent = sentence;
+
+    // Start mouth speaking (overlays on top of body action)
+    this.el.classList.add('cat-talking');
+    this.el.classList.add('cat-speaking');
+
+    // After duration, close mouth briefly (sentence boundary)
+    clearTimeout(this._speechTimer);
+    this._speechTimer = setTimeout(function () {
+      self.el.classList.remove('cat-talking');
+      self.el.classList.remove('cat-speaking');
+      done();
+    }, duration);
+  };
+
+  /**
+   * Stop any ongoing speak sequence immediately.
+   */
+  PixelCat.prototype.stopSpeak = function () {
+    clearTimeout(this._speakTimer);
+    clearTimeout(this._speechTimer);
+    this._speakQueue = [];
+    this._isSpeaking = false;
+    this.el.classList.remove('cat-speaking');
+    this.el.classList.remove('cat-talking');
+  };
+
+  /**
+   * Check if currently speaking.
+   * @returns {boolean}
+   */
+  PixelCat.prototype.isSpeaking = function () {
+    return this._isSpeaking;
+  };
+
   /**
    * Destroy the instance, clean up timers and listeners.
    */
   PixelCat.prototype.destroy = function () {
     clearTimeout(this._speechTimer);
+    clearTimeout(this._speakTimer);
     clearInterval(this._cycleTimer);
     clearInterval(this._idleTimer);
+    this._isSpeaking = false;
     var clone = this.el.cloneNode(true);
     this.el.parentNode.replaceChild(clone, this.el);
     this.el = null;
@@ -567,6 +823,6 @@
     PixelCat.autoInit();
   }
 
-  console.log('%c★ PixelCat v1.2.0 loaded', 'color:#f59e0b;font-weight:bold');
+  console.log('%c★ PixelCat v1.4.0 loaded', 'color:#f59e0b;font-weight:bold');
 
 })(typeof window !== 'undefined' ? window : this);

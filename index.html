@@ -200,6 +200,133 @@
   }
   .api-btn:active { transform: translateX(2px) scale(0.97); }
 
+  /* ===== SPEAK DEMO ===== */
+  .speak-demo {
+    display: flex;
+    gap: 32px;
+    padding: 40px;
+    background: var(--pc-bg-card, #141428);
+    border: 1px solid var(--pc-border, #2a2a4a);
+    border-radius: 20px;
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+  .speak-cat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-width: 200px;
+  }
+  .speak-cat .cat-interactive { width: 180px; }
+  .speak-action-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--pc-amber, #f59e0b);
+    padding: 4px 12px;
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 16px;
+    background: rgba(245,158,11,0.08);
+    min-width: 80px;
+    text-align: center;
+    transition: all 0.25s;
+  }
+  .speak-action-tag.idle { color: var(--pc-text-muted, #7a7a9a); border-color: var(--pc-border, #2a2a4a); background: transparent; }
+  .speak-panel {
+    flex: 1;
+    min-width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .speak-panel label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--pc-text-muted, #7a7a9a);
+  }
+  .speak-textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 14px 16px;
+    background: #0d0d1e;
+    border: 1px solid var(--pc-border, #2a2a4a);
+    border-radius: 12px;
+    color: var(--pc-text, #e8edf5);
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.7;
+    resize: vertical;
+    transition: border-color 0.25s;
+  }
+  .speak-textarea:focus {
+    outline: none;
+    border-color: var(--pc-amber, #f59e0b);
+  }
+  .speak-textarea::placeholder { color: #4a4a6a; }
+  .speak-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .speak-btn {
+    padding: 10px 22px;
+    border-radius: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.25s;
+    border: 1px solid;
+  }
+  .speak-btn.start {
+    background: rgba(245,158,11,0.12);
+    border-color: rgba(245,158,11,0.4);
+    color: var(--pc-amber, #f59e0b);
+  }
+  .speak-btn.start:hover { background: rgba(245,158,11,0.2); transform: translateY(-1px); }
+  .speak-btn.stop {
+    background: transparent;
+    border-color: var(--pc-border, #2a2a4a);
+    color: var(--pc-text-muted, #7a7a9a);
+  }
+  .speak-btn.stop:hover { border-color: #ec4899; color: #ec4899; }
+  .speak-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .speak-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--pc-text-muted, #7a7a9a);
+    margin-left: auto;
+  }
+  .speak-status .dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--pc-text-muted, #7a7a9a);
+    margin-right: 6px;
+    vertical-align: middle;
+    transition: background 0.25s;
+  }
+  .speak-status.active .dot { background: var(--pc-amber, #f59e0b); box-shadow: 0 0 8px rgba(245,158,11,0.6); animation: speak-pulse 1s ease-in-out infinite; }
+  @keyframes speak-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .speak-presets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .speak-preset {
+    padding: 6px 14px;
+    border-radius: 16px;
+    background: transparent;
+    border: 1px solid var(--pc-border, #2a2a4a);
+    color: var(--pc-text-muted, #7a7a9a);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: all 0.25s;
+  }
+  .speak-preset:hover { border-color: var(--pc-amber, #f59e0b); color: var(--pc-amber, #f59e0b); }
+
   /* ===== CODE BLOCK ===== */
   .code-block {
     background: #0d0d1e;
@@ -291,9 +418,57 @@
   </div>
 </div>
 
+<!-- ===== SPEAK DEMO ===== -->
+<div class="section">
+  <div class="section-title">03 · Semantic Speak</div>
+  <p class="section-desc">输入多行文本（每行一句），小猫逐句朗读。AI 自动识别每句语义 → 匹配对应动作（好奇/警觉/开心/睡觉/行走），嘴巴持续张合，身体语言跟随内容自然流动，像人讲话一样连贯。</p>
+  <div class="speak-demo">
+    <div class="speak-cat">
+      <div class="cat-interactive cat-idle" id="speakCat" style="width:180px" data-pc-skip></div>
+      <div class="speak-action-tag idle" id="speakActionTag">idle</div>
+    </div>
+    <div class="speak-panel">
+      <label>输入文本（换行分句）</label>
+      <textarea class="speak-textarea" id="speakInput" placeholder="每行一句话，小猫会逐句朗读并配以相应动作...">你好呀，我是 LUCY！
+今天好开心，见到你真高兴。
+咦？那是什么东西？
+注意！前方有危险，小心！
+好累呀，我想睡觉了，晚安~</textarea>
+      <div class="speak-controls">
+        <button class="speak-btn start" id="speakStartBtn">▶ 开始说话</button>
+        <button class="speak-btn stop" id="speakStopBtn" disabled>■ 停止</button>
+        <div class="speak-status" id="speakStatus"><span class="dot"></span><span id="speakStatusText">待机</span></div>
+      </div>
+      <label>预设示例</label>
+      <div class="speak-presets">
+        <button class="speak-preset" data-preset="greet">问候介绍</button>
+        <button class="speak-preset" data-preset="story">情绪故事</button>
+        <button class="speak-preset" data-preset="alert">警觉场景</button>
+        <button class="speak-preset" data-preset="sleep">困倦日常</button>
+      </div>
+    </div>
+  </div>
+  <div class="code-block">
+<span class="c">// 联动：文本输入 → 语义分析 → 逐句朗读 + 动作编排</span>
+<span class="k">const</span> cat = <span class="k">new</span> <span class="f">PixelCat</span>(<span class="s">'#speakCat'</span>);
+
+<span class="c">// 本地语义分析（零依赖，关键词匹配）</span>
+cat.<span class="f">speak</span>(<span class="s">'你好呀\n今天好开心\n好累了，晚安'</span>, {
+  onProgress: (i) =&gt; console.<span class="f">log</span>(<span class="s">'正在说:'</span>, i.text, <span class="s">'动作:'</span>, i.action),
+  onComplete: () =&gt; console.<span class="f">log</span>(<span class="s">'说完了'</span>)
+});
+
+<span class="c">// 方案C：寄生在桌面软件，用本地 AI 算力分析，数据足够后转外部 API</span>
+cat.<span class="f">setSemanticAnalyzer</span>(<span class="k">async</span> (sentence) =&gt; {
+  <span class="k">const</span> res = <span class="k">await</span> <span class="f">localAI</span>.<span class="f">analyze</span>(sentence);  <span class="c">// 桌面端本地大模型</span>
+  <span class="k">return</span> { action: res.action, confidence: res.confidence };
+});
+  </div>
+</div>
+
 <!-- ===== SIZE VARIANTS ===== -->
 <div class="section">
-  <div class="section-title">03 · Size Variants</div>
+  <div class="section-title">04 · Size Variants</div>
   <p class="section-desc">通过 cat-size-{xs|sm|md|lg|xl} 控制尺寸，也可直接设置 width。</p>
   <div class="size-row">
     <div class="size-item"><div class="cat-interactive cat-idle cat-size-xs"></div><span>xs · 48px</span></div>
@@ -306,7 +481,7 @@
 
 <!-- ===== API DEMO ===== -->
 <div class="section">
-  <div class="section-title">04 · Programmatic API</div>
+  <div class="section-title">05 · Programmatic API</div>
   <p class="section-desc">通过 JS 直接控制状态、对话和动作。</p>
   <div class="api-demo">
     <div class="api-cat">
@@ -346,8 +521,7 @@ cat.<span class="f">destroy</span>();             <span class="c">// 销毁实�
 
 <!-- ===== QUICK START ===== -->
 <div class="section">
-  <div class="section-title">05 · Quick Start</div>
-  <p class="section-desc">三步集成，零依赖。</p>
+  <div class="section-title">06 · Quick Start</div>
   <div class="code-block">
 <span class="c">&lt;!-- 1. 引入 CSS --&gt;</span>
 &lt;<span class="k">link</span> <span class="n">rel</span>=<span class="s">"stylesheet"</span> <span class="n">href</span>=<span class="s">"pixel-cat.css"</span>&gt;
@@ -369,7 +543,7 @@ cat.<span class="f">destroy</span>();             <span class="c">// 销毁实�
 
 <!-- ===== FOOTER ===== -->
 <div class="footer">
-  Pixel Cat v1.2.0 · MIT License · Made with ★ for LUCY
+  Pixel Cat v1.4.0 · MIT License · Made with ★ for LUCY
 </div>
 
 <script src="pixel-cat.js"></script>
@@ -398,6 +572,87 @@ cat.<span class="f">destroy</span>();             <span class="c">// 销毁实�
 
   // Build state gallery
   PixelCat.buildGallery('#stateGallery');
+
+  // ===== Semantic Speak Demo =====
+  var speakCat = new PixelCat('#speakCat', {
+    state: 'idle',
+    interactive: true,
+    eyeTrack: true
+  });
+
+  var speakInput = document.getElementById('speakInput');
+  var speakStartBtn = document.getElementById('speakStartBtn');
+  var speakStopBtn = document.getElementById('speakStopBtn');
+  var speakStatus = document.getElementById('speakStatus');
+  var speakStatusText = document.getElementById('speakStatusText');
+  var speakActionTag = document.getElementById('speakActionTag');
+
+  var ACTION_LABELS = {
+    idle: '待机', curious: '好奇', alert: '警觉',
+    happy: '开心', sleeping: '睡觉', walking: '行走'
+  };
+
+  var PRESETS = {
+    greet: '你好呀，我是 LUCY！\n很高兴见到你！\n我们可以做朋友吗？',
+    story: '今天天气真好，\n好开心呀！\n咦？那是什么？\n注意，好像有危险！\n呼，没事就好，放心了。',
+    alert: '注意！前方有情况。\n小心一点！\n快跑，快走！\n好险啊，终于安全了。',
+    sleep: '今天好累呀，\n有点犯困了，\n眼睛快睁不开了，\n晚安，做个好梦~'
+  };
+
+  function setActionTag(action) {
+    var label = ACTION_LABELS[action] || action;
+    speakActionTag.textContent = label;
+    if (action === 'idle') {
+      speakActionTag.classList.add('idle');
+    } else {
+      speakActionTag.classList.remove('idle');
+    }
+  }
+
+  function setSpeaking(isSpeaking) {
+    if (isSpeaking) {
+      speakStartBtn.disabled = true;
+      speakStopBtn.disabled = false;
+      speakStatus.classList.add('active');
+    } else {
+      speakStartBtn.disabled = false;
+      speakStopBtn.disabled = true;
+      speakStatus.classList.remove('active');
+      speakStatusText.textContent = '待机';
+      setActionTag('idle');
+    }
+  }
+
+  speakStartBtn.addEventListener('click', function () {
+    var text = speakInput.value.trim();
+    if (!text) return;
+    setSpeaking(true);
+    speakCat.speak(text, {
+      onProgress: function (info) {
+        speakStatusText.textContent = '第 ' + (info.index + 1) + '/' + info.total + ' 句';
+        setActionTag(info.action);
+      },
+      onComplete: function () {
+        setSpeaking(false);
+      }
+    });
+  });
+
+  speakStopBtn.addEventListener('click', function () {
+    speakCat.stopSpeak();
+    setSpeaking(false);
+  });
+
+  // Preset buttons
+  document.querySelectorAll('.speak-preset').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var key = btn.getAttribute('data-preset');
+      if (PRESETS[key]) {
+        speakInput.value = PRESETS[key];
+        speakInput.focus();
+      }
+    });
+  });
 
   console.log('%c★ Pixel Cat Demo loaded', 'color:#fbbf24;font-weight:bold;font-size:14px');
 </script>
