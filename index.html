@@ -327,6 +327,84 @@
   }
   .speak-preset:hover { border-color: var(--pc-amber, #f59e0b); color: var(--pc-amber, #f59e0b); }
 
+  /* ===== BROADCAST MODE ===== */
+  .broadcast-demo {
+    display: flex;
+    gap: 32px;
+    padding: 40px;
+    background: var(--pc-bg-card, #141428);
+    border: 1px solid var(--pc-border, #2a2a4a);
+    border-radius: 20px;
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+  .broadcast-cat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-width: 220px;
+  }
+  .broadcast-cat .cat-interactive { width: 200px; }
+  .broadcast-info {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--pc-text-muted, #7a7a9a);
+    text-align: center;
+    min-height: 20px;
+  }
+  .broadcast-info .pose-tag {
+    color: var(--pc-amber, #f59e0b);
+  }
+  .broadcast-info .emote-tag {
+    color: var(--pc-pink, #ec4899);
+  }
+  .broadcast-panel {
+    flex: 1;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .broadcast-panel label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--pc-text-muted, #7a7a9a);
+  }
+  .pose-buttons, .emote-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .pose-buttons .api-btn, .emote-buttons .api-btn {
+    padding: 6px 14px;
+    font-size: 0.72rem;
+  }
+  .broadcast-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .broadcast-presets {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .markup-hint {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--pc-text-muted, #7a7a9a);
+    line-height: 1.8;
+    padding: 12px 16px;
+    background: #0d0d1e;
+    border: 1px solid var(--pc-border, #2a2a4a);
+    border-radius: 10px;
+  }
+  .markup-hint .tag { color: var(--pc-amber, #f59e0b); }
+  .markup-hint .desc { color: var(--pc-text-muted, #7a7a9a); }
+
   /* ===== CODE BLOCK ===== */
   .code-block {
     background: #0d0d1e;
@@ -385,10 +463,10 @@
   <h1>Pixel Cat</h1>
   <p>8-bit 像素小猫交互组件 · 零依赖 · 可复用 · MIT 协议</p>
   <div class="hero-badges">
-    <span class="hero-badge accent">★ 6 States</span>
+    <span class="hero-badge accent">★ 6 States + 11 Actions</span>
     <span class="hero-badge">Zero Dependency</span>
     <span class="hero-badge">SVG + CSS</span>
-    <span class="hero-badge">~8KB</span>
+    <span class="hero-badge">Broadcast Mode</span>
   </div>
 </div>
 
@@ -466,9 +544,83 @@ cat.<span class="f">setSemanticAnalyzer</span>(<span class="k">async</span> (sen
   </div>
 </div>
 
+<!-- ===== BROADCAST MODE ===== -->
+<div class="section">
+  <div class="section-title">04 · Broadcast Mode</div>
+  <p class="section-desc">口播专用模式：支持标记语法设置姿态和表情，AI 自动匹配动作，保持自然连贯。姿态持续生效直到重置，表情单次触发后消失。</p>
+  <div class="markup-hint">
+<span class="tag">[戴眼镜]</span> <span class="desc">文字 → 持续姿态（眼镜/讲课/书本/键盘/展示/思考）</span><br>
+<span class="tag">[疑问]</span> <span class="desc">文字 → 瞬间表情（疑问/震惊/想到/点赞/否定）</span><br>
+<span class="tag">[/]</span> <span class="desc">文字 → 重置姿态，恢复正常说话</span>
+  </div>
+  <div class="broadcast-demo">
+    <div class="broadcast-cat">
+      <div class="cat-interactive cat-idle" id="broadcastCat" style="width:200px" data-pc-skip></div>
+      <div class="broadcast-info" id="broadcastInfo">idle · 无姿态</div>
+    </div>
+    <div class="broadcast-panel">
+      <label>口播稿（支持标记语法，换行分句）</label>
+      <textarea class="speak-textarea" id="broadcastInput" placeholder="每行一句，可用 [标记] 设置姿态和表情...">[戴眼镜]大家好，今天我们来聊聊 AI
+AI 的本质是降低使用门槛
+[敲键盘]比如这段代码，function hello() {}
+[疑问]你们知道为什么吗？
+[想到]因为 AI 就像自动挡，让普通人也能开车
+[展示]这就是我们的产品 LUCY
+[/]希望大家喜欢，谢谢！</textarea>
+      <div class="broadcast-controls">
+        <button class="speak-btn start" id="broadcastStartBtn">▶ 开始口播</button>
+        <button class="speak-btn stop" id="broadcastStopBtn" disabled>■ 停止</button>
+        <div class="speak-status" id="broadcastStatus"><span class="dot"></span><span id="broadcastStatusText">待机</span></div>
+      </div>
+      <label>姿态控制（手动测试）</label>
+      <div class="pose-buttons">
+        <button class="api-btn" data-pose="glasses">戴眼镜</button>
+        <button class="api-btn" data-pose="teach">讲课</button>
+        <button class="api-btn" data-pose="book">拿书本</button>
+        <button class="api-btn" data-pose="keyboard">敲键盘</button>
+        <button class="api-btn" data-pose="present">展示</button>
+        <button class="api-btn" data-pose="think">思考</button>
+        <button class="api-btn" data-pose="idle">重置姿态</button>
+      </div>
+      <label>表情触发（手动测试）</label>
+      <div class="emote-buttons">
+        <button class="api-btn" data-emote="question">疑问</button>
+        <button class="api-btn" data-emote="shock">震惊</button>
+        <button class="api-btn" data-emote="idea">想到</button>
+        <button class="api-btn" data-emote="thumbsup">点赞</button>
+        <button class="api-btn" data-emote="deny">否定</button>
+      </div>
+      <label>预设口播稿</label>
+      <div class="broadcast-presets">
+        <button class="speak-preset" data-bp="ai">AI 知识分享</button>
+        <button class="speak-preset" data-bp="product">产品展示</button>
+        <button class="speak-preset" data-bp="teach">教学讲解</button>
+        <button class="speak-preset" data-bp="review">测评推荐</button>
+      </div>
+    </div>
+  </div>
+  <div class="code-block">
+<span class="c">// 口播模式：标记语法 + 优先级引擎 + 动作密度策略</span>
+<span class="k">const</span> cat = <span class="k">new</span> <span class="f">PixelCat</span>(<span class="s">'#broadcastCat'</span>);
+
+<span class="c">// 标记语法自动解析，姿态持续，表情单次</span>
+cat.<span class="f">speak</span>(<span class="s">'[戴眼镜]AI的本质是降低门槛\n[敲键盘]看这段代码\n[/]谢谢大家'</span>, {
+  onProgress: (i) =&gt; console.<span class="f">log</span>(i.text, i.pose, i.emote),
+  onComplete: () =&gt; console.<span class="f">log</span>(<span class="s">'口播结束'</span>)
+});
+
+<span class="c">// 手动控制 API</span>
+cat.<span class="f">setPose</span>(<span class="s">'glasses'</span>);       <span class="c">// 设置持续姿态</span>
+cat.<span class="f">clearPose</span>();             <span class="c">// 清除姿态</span>
+cat.<span class="f">triggerEmote</span>(<span class="s">'question'</span>);  <span class="c">// 触发瞬间表情</span>
+cat.<span class="f">setBubbleSize</span>(<span class="s">'lg'</span>);       <span class="c">// 气泡尺寸 sm|md|lg</span>
+cat.<span class="f">setBubblePosition</span>(<span class="s">'left'</span>);  <span class="c">// 气泡位置 left|center|right</span>
+  </div>
+</div>
+
 <!-- ===== SIZE VARIANTS ===== -->
 <div class="section">
-  <div class="section-title">04 · Size Variants</div>
+  <div class="section-title">05 · Size Variants</div>
   <p class="section-desc">通过 cat-size-{xs|sm|md|lg|xl} 控制尺寸，也可直接设置 width。</p>
   <div class="size-row">
     <div class="size-item"><div class="cat-interactive cat-idle cat-size-xs"></div><span>xs · 48px</span></div>
@@ -481,7 +633,7 @@ cat.<span class="f">setSemanticAnalyzer</span>(<span class="k">async</span> (sen
 
 <!-- ===== API DEMO ===== -->
 <div class="section">
-  <div class="section-title">05 · Programmatic API</div>
+  <div class="section-title">06 · Programmatic API</div>
   <p class="section-desc">通过 JS 直接控制状态、对话和动作。</p>
   <div class="api-demo">
     <div class="api-cat">
@@ -521,7 +673,7 @@ cat.<span class="f">destroy</span>();             <span class="c">// 销毁实�
 
 <!-- ===== QUICK START ===== -->
 <div class="section">
-  <div class="section-title">06 · Quick Start</div>
+  <div class="section-title">07 · Quick Start</div>
   <div class="code-block">
 <span class="c">&lt;!-- 1. 引入 CSS --&gt;</span>
 &lt;<span class="k">link</span> <span class="n">rel</span>=<span class="s">"stylesheet"</span> <span class="n">href</span>=<span class="s">"pixel-cat.css"</span>&gt;
@@ -543,7 +695,7 @@ cat.<span class="f">destroy</span>();             <span class="c">// 销毁实�
 
 <!-- ===== FOOTER ===== -->
 <div class="footer">
-  Pixel Cat v1.4.0 · MIT License · Made with ★ for LUCY
+  Pixel Cat v2.0.0 · MIT License · Made with ★ for LUCY
 </div>
 
 <script src="pixel-cat.js"></script>
@@ -650,6 +802,123 @@ cat.<span class="f">destroy</span>();             <span class="c">// 销毁实�
       if (PRESETS[key]) {
         speakInput.value = PRESETS[key];
         speakInput.focus();
+      }
+    });
+  });
+
+  // ===== Broadcast Mode Demo =====
+  var broadcastCat = new PixelCat('#broadcastCat', {
+    state: 'idle',
+    interactive: true,
+    eyeTrack: true
+  });
+
+  var broadcastInput = document.getElementById('broadcastInput');
+  var broadcastStartBtn = document.getElementById('broadcastStartBtn');
+  var broadcastStopBtn = document.getElementById('broadcastStopBtn');
+  var broadcastStatus = document.getElementById('broadcastStatus');
+  var broadcastStatusText = document.getElementById('broadcastStatusText');
+  var broadcastInfo = document.getElementById('broadcastInfo');
+
+  var POSE_LABELS = {
+    glasses: '戴眼镜', teach: '讲课', book: '拿书本',
+    keyboard: '敲键盘', present: '展示', think: '思考'
+  };
+  var EMOTE_LABELS = {
+    question: '疑问', shock: '震惊', idea: '想到',
+    thumbsup: '点赞', deny: '否定'
+  };
+  var STATE_LABELS_B = {
+    idle: '待机', curious: '好奇', alert: '警觉',
+    happy: '开心', sleeping: '睡觉', walking: '行走'
+  };
+
+  var BROADCAST_PRESETS = {
+    ai: '[戴眼镜]大家好，今天来聊聊 AI\nAI 的本质是降低使用门槛\n[敲键盘]比如这段代码\n[疑问]你们知道为什么吗？\n[想到]因为 AI 就像自动挡\n[展示]这就是 LUCY\n[/]谢谢大家！',
+    product: '[展示]给大家看看我们的新产品\n这个产品叫 LUCY\n[戴眼镜]它是一个开源口袋终端\n[敲键盘]支持多种硬件接口\n[点赞]值得期待\n[/]谢谢支持！',
+    teach: '[讲课]今天教大家一个知识点\n[拿书本]请翻到第三章\n[疑问]这里懂了吗？\n[想到]关键在于理解原理\n[点赞]很好，就是这样\n[/]下课！',
+    review: '[戴眼镜]今天测评一个产品\n[展示]就是这台 LUCY\n[震惊]功能竟然这么丰富\n[疑问]价格贵不贵呢？\n[点赞]性价比很高\n[/]推荐入手！'
+  };
+
+  function updateBroadcastInfo(state, pose, emote) {
+    var parts = [];
+    parts.push(STATE_LABELS_B[state] || state || '待机');
+    if (pose) {
+      parts.push('<span class="pose-tag">' + (POSE_LABELS[pose] || pose) + '</span>');
+    } else {
+      parts.push('无姿态');
+    }
+    if (emote) {
+      parts.push('<span class="emote-tag">' + (EMOTE_LABELS[emote] || emote) + '</span>');
+    }
+    broadcastInfo.innerHTML = parts.join(' · ');
+  }
+
+  function setBroadcasting(isOn) {
+    if (isOn) {
+      broadcastStartBtn.disabled = true;
+      broadcastStopBtn.disabled = false;
+      broadcastStatus.classList.add('active');
+    } else {
+      broadcastStartBtn.disabled = false;
+      broadcastStopBtn.disabled = true;
+      broadcastStatus.classList.remove('active');
+      broadcastStatusText.textContent = '待机';
+      updateBroadcastInfo('idle', null, null);
+    }
+  }
+
+  broadcastStartBtn.addEventListener('click', function () {
+    var text = broadcastInput.value.trim();
+    if (!text) return;
+    setBroadcasting(true);
+    broadcastCat.speak(text, {
+      onProgress: function (info) {
+        broadcastStatusText.textContent = '第 ' + (info.index + 1) + '/' + info.total + ' 句';
+        updateBroadcastInfo(info.action, info.pose, info.emote);
+      },
+      onComplete: function () {
+        setBroadcasting(false);
+      }
+    });
+  });
+
+  broadcastStopBtn.addEventListener('click', function () {
+    broadcastCat.stopSpeak();
+    setBroadcasting(false);
+  });
+
+  // Pose control buttons
+  document.querySelectorAll('.pose-buttons .api-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var pose = btn.getAttribute('data-pose');
+      if (pose === 'idle') {
+        broadcastCat.clearPose();
+        updateBroadcastInfo(broadcastCat.getState().replace('cat-', ''), null, null);
+      } else {
+        broadcastCat.setPose(pose);
+        updateBroadcastInfo(broadcastCat.getState().replace('cat-', ''), pose, null);
+      }
+    });
+  });
+
+  // Emote trigger buttons
+  document.querySelectorAll('.emote-buttons .api-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var emote = btn.getAttribute('data-emote');
+      broadcastCat.triggerEmote(emote);
+      var currentState = broadcastCat.getState().replace('cat-', '');
+      updateBroadcastInfo(currentState, broadcastCat.getPose(), emote);
+    });
+  });
+
+  // Broadcast preset buttons
+  document.querySelectorAll('[data-bp]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var key = btn.getAttribute('data-bp');
+      if (BROADCAST_PRESETS[key]) {
+        broadcastInput.value = BROADCAST_PRESETS[key];
+        broadcastInput.focus();
       }
     });
   });

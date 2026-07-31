@@ -1,6 +1,6 @@
 /* ============================================
    PIXEL CAT — 8-bit Interactive Pixel Cat Component
-   Version: 1.3.0 (semantic speak system)
+   Version: 2.0.0 (broadcast mode: poses + emotes + markup)
    License: MIT
    ============================================
    Usage: <link rel="stylesheet" href="pixel-cat.css">
@@ -299,6 +299,142 @@
   transform: translateX(-50%) translateY(0);
 }
 
+/* --- v2.0: bubble size variants --- */
+.cat-bubble-sm { font-size: 0.62rem; padding: 3px 10px; max-width: 140px; }
+.cat-bubble-md { font-size: 0.72rem; padding: 5px 14px; max-width: 200px; }
+.cat-bubble-lg { font-size: 0.85rem; padding: 7px 18px; max-width: 280px; }
+
+/* --- v2.0: bubble position variants --- */
+.cat-bubble-left {
+  left: 0;
+  transform: translateY(4px);
+}
+.cat-bubble-left::after { left: 20px; transform: none; }
+.cat-interactive.cat-talking .cat-bubble-left {
+  transform: translateY(0);
+}
+
+.cat-bubble-right {
+  left: auto; right: 0;
+  transform: translateY(4px);
+}
+.cat-bubble-right::after { left: auto; right: 20px; transform: none; }
+.cat-interactive.cat-talking .cat-bubble-right {
+  transform: translateY(0);
+}
+
+/* ============================================
+   8.5 v2.0 POSE PROP LAYER (inside SVG)
+   ============================================ */
+
+/* Prop layer is an SVG <g> — no CSS positioning needed,
+   props use SVG coordinates. Only visibility control here. */
+.cat-prop-layer {
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+.cat-prop-layer:empty { opacity: 0; }
+
+/* --- v2.0: Pose body language effects --- */
+
+/* Glasses: slight head tilt forward (studious) */
+.cat-pose-glasses .cat-head {
+  transform: translateY(1px);
+  transition: transform 0.3s ease;
+}
+
+/* Teach: body leans forward slightly */
+.cat-pose-teach .cat-body {
+  transform-origin: center bottom;
+  transform: rotate(-2deg) translateY(1px);
+  transition: transform 0.3s ease;
+}
+
+/* Book: body sits up straighter */
+.cat-pose-book .cat-body {
+  transform-origin: center bottom;
+  transform: scaleY(1.02);
+  transition: transform 0.3s ease;
+}
+
+/* Keyboard: body leans forward (typing posture) */
+.cat-pose-keyboard .cat-body {
+  transform-origin: center bottom;
+  transform: rotate(1deg) translateY(2px) scaleY(0.98);
+  transition: transform 0.3s ease;
+}
+
+/* Present: body stands taller (showing off) */
+.cat-pose-present .cat-body {
+  transform-origin: center bottom;
+  transform: translateY(-2px) scaleY(1.03);
+  transition: transform 0.3s ease;
+}
+.cat-pose-present .cat-prop-present {
+  animation: present-sparkle 1.2s ease-in-out infinite alternate;
+}
+@keyframes present-sparkle {
+  0% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+/* Think: head tilts sideways (contemplating) */
+.cat-pose-think .cat-head {
+  transform: rotate(3deg) translateX(-2px);
+  transition: transform 0.3s ease;
+}
+
+/* ============================================
+   8.6 v2.0 EMOTE LAYER (above head, transient)
+   ============================================ */
+
+.cat-emote-layer {
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 20px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 25;
+  transition: opacity 0.2s ease;
+}
+.cat-emote-layer svg {
+  width: 100%;
+  height: 100%;
+  shape-rendering: crispEdges;
+}
+.cat-emote-layer.cat-emote-show {
+  opacity: 1;
+  animation: emote-pop 0.3s ease-out;
+}
+@keyframes emote-pop {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.3) translateY(8px); }
+  60% { transform: translateX(-50%) scale(1.2) translateY(-2px); }
+  100% { opacity: 1; transform: translateX(-50%) scale(1) translateY(0); }
+}
+
+/* --- emote type animations --- */
+.cat-emote-question { animation: emote-bob 0.8s ease-in-out infinite; }
+.cat-emote-shock { animation: emote-shake 0.15s ease-in-out infinite; }
+.cat-emote-idea { animation: emote-glow 0.6s ease-in-out infinite alternate; }
+.cat-emote-thumbsup { animation: emote-bob 1s ease-in-out infinite; }
+.cat-emote-deny { animation: emote-shake 0.3s ease-in-out infinite; }
+
+@keyframes emote-bob {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-3px); }
+}
+@keyframes emote-shake {
+  0%, 100% { transform: translateX(-50%) translateX(0); }
+  50% { transform: translateX(-50%) translateX(2px); }
+}
+@keyframes emote-glow {
+  0% { filter: drop-shadow(0 0 2px rgba(251,191,36,0.4)); }
+  100% { filter: drop-shadow(0 0 8px rgba(251,191,36,0.8)); }
+}
+
 /* ============================================
    9. PUPIL EYE-TRACKING
    ============================================ */
@@ -399,7 +535,14 @@
   .eye-open, .eye-closed, .cat-whisker-l, .cat-whisker-r,
   .cat-idle, .cat-walking, .cat-curious, .cat-happy,
   .cat-interactive.cat-purring, .paw-trail, .sleep-z,
-  .cat-speaking .cat-mouth-closed, .cat-speaking .cat-mouth-open {
+  .cat-speaking .cat-mouth-closed, .cat-speaking .cat-mouth-open,
+  .cat-emote-layer.cat-emote-show,
+  .cat-emote-question, .cat-emote-shock, .cat-emote-idea,
+  .cat-emote-thumbsup, .cat-emote-deny,
+  .cat-pose-present .cat-prop-present,
+  .cat-pose-glasses .cat-head, .cat-pose-teach .cat-body,
+  .cat-pose-book .cat-body, .cat-pose-keyboard .cat-body,
+  .cat-pose-present .cat-body, .cat-pose-think .cat-head {
     animation: none !important;
   }
 }
