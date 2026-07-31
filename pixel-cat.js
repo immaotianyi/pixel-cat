@@ -1,6 +1,6 @@
 /* ============================================
    PIXEL CAT — 8-bit Interactive Pixel Cat
-   Version: 2.4.0 (decoupled timings + organic easing + compound micro-events)
+   Version: 2.5.0 (natural speech rhythm + smart bubble positioning)
    License: MIT
    ============================================
    A reusable, zero-dependency pixel cat component.
@@ -339,10 +339,13 @@
     '正常': 'idle', '恢复': 'idle', 'idle': 'idle', '/': 'idle'
   };
 
-  /* --- Speaking speed: ms per character --- */
-  var MS_PER_CHAR = 110;        // 每字时长，略快更自然
-  var SENTENCE_GAP = 200;       // 句间停顿（呼吸感，像人换气）
-  var TRANSITION_GAP = 150;     // 动作过渡（情绪切换的自然瞬间）
+  /* --- Speaking speed: ms per character (natural Chinese oral pace ~3-4 chars/sec) --- */
+  var MS_PER_CHAR = 280;        // 每字基础时长 (视频口播约3.5字/秒)
+  var SENTENCE_GAP = 750;       // 句间停顿（呼吸感，句号/问号/感叹号后的自然停顿）
+  var COMMA_GAP = 280;          // 逗号/顿号/分号后的短暂停顿
+  var SHORT_GAP = 150;          // 短句/词组间的极短停顿
+  var TRANSITION_GAP = 200;     // 动作过渡（情绪切换的自然瞬间）
+  var MIN_DURATION = 1200;      // 单句最短时长（避免短句一闪而过）
 
   /* ============================================
      2.2 MARKUP PARSER — [action]text[/] syntax
@@ -1325,6 +1328,17 @@
         self.setState('idle');
         self.clearPose();
         self._lastAction = 'idle';
+        // Clear speech bubble after a short fade
+        var bubble = self.el.querySelector('.cat-speech');
+        if (bubble) bubble.textContent = '';
+        // Clear emote
+        if (self._emoteTimer) {
+          clearTimeout(self._emoteTimer);
+          if (self._emoteLayer) {
+            self._emoteLayer.className = 'cat-emote-layer';
+            self._emoteLayer.innerHTML = '';
+          }
+        }
         if (opts.onComplete) opts.onComplete();
         return;
       }
@@ -1369,8 +1383,14 @@
         finalEmote = manualEmote;  // manual supplement
       }
 
-      // Calculate duration
-      var duration = Math.max(800, sentence.length * MS_PER_CHAR / speed);
+      // Calculate duration with punctuation-aware timing
+      var duration = self._calcSentenceDuration(sentence, speed);
+
+      // Determine inter-sentence gap based on ending punctuation
+      var nextGap = self._calcSentenceGap(sentence);
+
+      // Smart bubble positioning: avoid emote overlap
+      self._adaptBubblePosition(finalEmote, sentence);
 
       // Progress callback
       if (opts.onProgress) {
@@ -1387,11 +1407,112 @@
       // Execute: pose + state + emote + mouth
       self._performSentenceV2(sentence, finalState, finalPose, finalEmote, duration, function () {
         idx++;
-        self._speakTimer = setTimeout(playNext, SENTENCE_GAP);
+        self._speakTimer = setTimeout(playNext, nextGap);
       });
     }
 
     playNext();
+  };
+
+  /* ============================================
+     v2.5 NATURAL SPEECH RHYTHM HELPERS
+     Punctuation-aware duration + smart bubble positioning
+     ============================================ */
+
+  /**
+   * Calculate natural speaking duration for a sentence.
+   * - Base: chars * MS_PER_CHAR
+   * - Adds pauses for internal punctuation (commas, etc.)
+   * - Enforces minimum duration
+   */
+  PixelCat.prototype._calcSentenceDuration = function (sentence, speed) {
+    var base = sentence.length * MS_PER_CHAR / speed;
+
+    // Add internal punctuation pauses
+    var commaCount = (sentence.match(/[，、；,;]/g) || []).length;
+    var pauseCount = (sentence.match(/[：:…—\-]/g) || []).length;
+    var internalPauses = commaCount * COMMA_GAP * 0.6 + pauseCount * SHORT_GAP;
+
+    // English words/numbers speak slightly slower per char
+    var englishRatio = (sentence.match(/[a-zA-Z0-9]/g) || []).length / Math.max(sentence.length, 1);
+    var englishAdjust = 1 + englishRatio * 0.3; // up to 30% more time for English-heavy text
+
+    var total = (base + internalPauses) * englishAdjust;
+    return Math.max(MIN_DURATION, total);
+  };
+
+  /**
+   * Calculate gap AFTER this sentence before the next one,
+   * based on ending punctuation.
+   */
+  PixelCat.prototype._calcSentenceGap = function (sentence) {
+    var trimmed = sentence.replace(/\s+$/, '');
+    var lastChar = trimmed.charAt(trimmed.length - 1);
+
+    // Strong ending: period, exclamation, question mark, ellipsis → full breath
+    if (/[。！？!？…]/.test(lastChar)) {
+      return SENTENCE_GAP;
+    }
+    // Medium ending: comma, semicolon → shorter pause (mid-thought)
+    if (/[，；,;]/.test(lastChar)) {
+      return COMMA_GAP;
+    }
+    // Weak/no ending: clause continues → short gap
+    return SHORT_GAP;
+  };
+
+  /**
+   * Smart bubble positioning:
+   * - When emote is active above head, shift bubble left/right to avoid overlap
+   * - Auto-size bubble based on text length
+   * - Auto-pick bubble shape variant
+   */
+  PixelCat.prototype._adaptBubblePosition = function (emote, sentence) {
+    var bubble = this.el.querySelector('.cat-speech');
+    if (!bubble) return;
+
+    // Remove all position/size classes first
+    bubble.classList.remove(
+      'cat-bubble-left', 'cat-bubble-center', 'cat-bubble-right',
+      'cat-bubble-sm', 'cat-bubble-md', 'cat-bubble-lg',
+      'cat-bubble-wide', 'cat-bubble-tall', 'cat-bubble-shape-think'
+    );
+
+    // Position: if emote is showing at center-top, shift bubble sideways
+    var pos;
+    if (emote) {
+      // Alternate left/right based on sentence hash for visual variety
+      var hash = 0;
+      for (var i = 0; i < sentence.length; i++) {
+        hash = ((hash << 5) - hash + sentence.charCodeAt(i)) | 0;
+      }
+      pos = (hash % 2 === 0) ? 'left' : 'right';
+    } else {
+      pos = 'center';
+    }
+    bubble.classList.add('cat-bubble-' + pos);
+
+    // Auto-size: based on character count
+    var len = sentence.length;
+    var size;
+    if (len <= 6) {
+      size = 'sm';
+    } else if (len <= 14) {
+      size = 'md';
+    } else {
+      size = 'lg';
+    }
+    bubble.classList.add('cat-bubble-' + size);
+
+    // Shape variant: for thinking/curious states, add rounded "think bubble" style
+    if (emote === 'question' || emote === 'idea') {
+      bubble.classList.add('cat-bubble-shape-think');
+    }
+
+    // Wide variant for long text
+    if (len > 18) {
+      bubble.classList.add('cat-bubble-wide');
+    }
   };
 
   /**
