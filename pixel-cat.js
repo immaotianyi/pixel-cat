@@ -1,6 +1,6 @@
 /* ============================================
    PIXEL CAT — 8-bit Interactive Pixel Cat
-   Version: 2.0.0 (broadcast mode: poses + emotes + markup + priority engine)
+   Version: 2.1.0 (enriched multi-part animations for all states/poses/emotes)
    License: MIT
    ============================================
    A reusable, zero-dependency pixel cat component.
@@ -1308,6 +1308,6 @@
     PixelCat.autoInit();
   }
 
-  console.log('%c★ PixelCat v2.0.0 loaded', 'color:#f59e0b;font-weight:bold');
+  console.log('%c★ PixelCat v2.1.0 loaded', 'color:#f59e0b;font-weight:bold');
 
 })(typeof window !== 'undefined' ? window : this);
