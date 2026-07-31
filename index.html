@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Cat — 8-bit Interactive Pixel Cat Component</title>
+<link rel="stylesheet" href="pixel-cat.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--pc-bg, #0a0a1a);
+    color: var(--pc-text, #e8edf5);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ===== HERO ===== */
+  .hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-bg {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 40%, rgba(245,158,11,0.08), transparent 60%);
+    z-index: 0;
+  }
+  .hero-cat {
+    position: relative; z-index: 1;
+    margin-bottom: 32px;
+  }
+  .hero-cat .cat-interactive { width: 200px; }
+  .hero h1 {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 2.4rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 50%, #ec4899 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+    position: relative; z-index: 1;
+  }
+  .hero p {
+    color: var(--pc-text-muted, #7a7a9a);
+    font-size: 1rem;
+    max-width: 540px;
+    line-height: 1.7;
+    position: relative; z-index: 1;
+  }
+  .hero-badges {
+    display: flex; gap: 10px; margin-top: 20px;
+    position: relative; z-index: 1;
+  }
+  .hero-badge {
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    border: 1px solid var(--pc-border, #2a2a4a);
+    color: var(--pc-text-muted, #7a7a9a);
+  }
+  .hero-badge.accent {
+    background: rgba(245,158,11,0.12);
+    border-color: rgba(245,158,11,0.3);
+    color: var(--pc-amber, #f59e0b);
+  }
+
+  /* ===== SECTIONS ===== */
+  .section {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 60px 24px;
+  }
+  .section-title {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--pc-amber, #f59e0b);
+    margin-bottom: 8px;
+  }
+  .section-desc {
+    color: var(--pc-text-muted, #7a7a9a);
+    font-size: 0.88rem;
+    margin-bottom: 32px;
+    line-height: 1.6;
+  }
+
+  /* ===== STATES GALLERY ===== */
+  #stateGallery { margin-bottom: 20px; }
+
+  /* ===== INTERACTIVE DEMO ===== */
+  .demo-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    padding: 48px;
+    background: var(--pc-bg-card, #141428);
+    border: 1px solid var(--pc-border, #2a2a4a);
+    border-radius: 20px;
+    flex-wrap: wrap;
+  }
+  .demo-area .cat-interactive { width: 160px; }
+  .demo-info {
+    flex: 1; min-width: 240px;
+  }
+  .demo-info h3 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.05rem;
+    color: var(--pc-amber, #f59e0b);
+    margin-bottom: 10px;
+  }
+  .demo-info ul {
+    list-style: none;
+    padding: 0;
+  }
+  .demo-info li {
+    color: var(--pc-text-muted, #7a7a9a);
+    font-size: 0.85rem;
+    padding: 6px 0;
+    padding-left: 20px;
+    position: relative;
+    line-height: 1.6;
+  }
+  .demo-info li::before {
+    content: '★';
+    position: absolute; left: 0;
+    color: var(--pc-amber, #f59e0b);
+    font-size: 0.75rem;
+  }
+
+  /* ===== SIZE SHOWCASE ===== */
+  .size-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 32px;
+    padding: 40px;
+    background: var(--pc-bg-card, #141428);
+    border: 1px solid var(--pc-border, #2a2a4a);
+    border-radius: 20px;
+    flex-wrap: wrap;
+  }
+  .size-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .size-item span {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--pc-text-muted, #7a7a9a);
+  }
+
+  /* ===== API DEMO ===== */
+  .api-demo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    padding: 40px;
+    background: var(--pc-bg-card, #141428);
+    border: 1px solid var(--pc-border, #2a2a4a);
+    border-radius: 20px;
+    flex-wrap: wrap;
+  }
+  .api-cat .cat-interactive { width: 140px; }
+  .api-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .api-btn {
+    padding: 10px 20px;
+    background: transparent;
+    border: 1px solid var(--pc-border, #2a2a4a);
+    border-radius: 10px;
+    color: var(--pc-text, #e8edf5);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all 0.25s;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .api-btn:hover {
+    border-color: var(--pc-amber, #f59e0b);
+    background: rgba(245,158,11,0.08);
+    color: var(--pc-amber, #f59e0b);
+    transform: translateX(4px);
+  }
+  .api-btn:active { transform: translateX(2px) scale(0.97); }
+
+  /* ===== CODE BLOCK ===== */
+  .code-block {
+    background: #0d0d1e;
+    border: 1px solid var(--pc-border, #2a2a4a);
+    border-radius: 12px;
+    padding: 20px 24px;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 0.8rem;
+    line-height: 1.7;
+    color: #a0a0c0;
+    overflow-x: auto;
+    margin-top: 16px;
+  }
+  .code-block .k { color: #c084fc; }
+  .code-block .s { color: #fbbf24; }
+  .code-block .c { color: #4a4a6a; }
+  .code-block .f { color: #60a5fa; }
+  .code-block .n { color: #ec4899; }
+
+  /* ===== FOOTER ===== */
+  .footer {
+    text-align: center;
+    padding: 40px 24px;
+    color: var(--pc-text-muted, #7a7a9a);
+    font-size: 0.78rem;
+    font-family: 'JetBrains Mono', monospace;
+    border-top: 1px solid var(--pc-border, #2a2a4a);
+    margin-top: 40px;
+  }
+  .footer a {
+    color: var(--pc-amber, #f59e0b);
+    text-decoration: none;
+  }
+
+  /* ===== PAW TRAIL DECORATION ===== */
+  .paw-trail-deco {
+    display: flex; gap: 12px; opacity: 0.1;
+    justify-content: center;
+    margin: 20px 0;
+  }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.6rem; }
+    .demo-area, .size-row, .api-demo { padding: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-cat">
+    <div class="cat-interactive cat-idle" id="heroCat" data-pc-skip></div>
+  </div>
+  <h1>Pixel Cat</h1>
+  <p>8-bit 像素小猫交互组件 · 零依赖 · 可复用 · MIT 协议</p>
+  <div class="hero-badges">
+    <span class="hero-badge accent">★ 6 States</span>
+    <span class="hero-badge">Zero Dependency</span>
+    <span class="hero-badge">SVG + CSS</span>
+    <span class="hero-badge">~8KB</span>
+  </div>
+</div>
+
+<!-- ===== STATE GALLERY ===== -->
+<div class="section">
+  <div class="section-title">01 · State Gallery</div>
+  <p class="section-desc">6 种状态：待机 / 好奇 / 行走 / 警觉 / 睡觉 / 开心。每个小猫都可以单独交互。</p>
+  <div id="stateGallery"></div>
+</div>
+
+<!-- ===== INTERACTIVE DEMO ===== -->
+<div class="section">
+  <div class="section-title">02 · Interactive Demo</div>
+  <p class="section-desc">鼠标悬停触发呼噜振动 + 星星粒子，点击触发爱心 + 对话气泡，连续点击 3 次触发开心跳舞。</p>
+  <div class="demo-area">
+    <div class="cat-interactive cat-idle" id="demoCat" style="width:160px" data-pc-skip></div>
+    <div class="demo-info">
+      <h3>Try it →</h3>
+      <ul>
+        <li>鼠标移上去 → 呼噜振动 + 星星粒子</li>
+        <li>鼠标移动 → 眼睛瞳孔追踪</li>
+        <li>点击 → 爱心粒子 + 随机对话</li>
+        <li>连续点击 3 次 → 开心跳舞 + 星星爆发</li>
+        <li>离开后 → 自动恢复待机呼吸</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SIZE VARIANTS ===== -->
+<div class="section">
+  <div class="section-title">03 · Size Variants</div>
+  <p class="section-desc">通过 cat-size-{xs|sm|md|lg|xl} 控制尺寸，也可直接设置 width。</p>
+  <div class="size-row">
+    <div class="size-item"><div class="cat-interactive cat-idle cat-size-xs"></div><span>xs · 48px</span></div>
+    <div class="size-item"><div class="cat-interactive cat-idle cat-size-sm"></div><span>sm · 72px</span></div>
+    <div class="size-item"><div class="cat-interactive cat-idle cat-size-md"></div><span>md · 120px</span></div>
+    <div class="size-item"><div class="cat-interactive cat-idle cat-size-lg"></div><span>lg · 180px</span></div>
+    <div class="size-item"><div class="cat-interactive cat-idle cat-size-xl"></div><span>xl · 240px</span></div>
+  </div>
+</div>
+
+<!-- ===== API DEMO ===== -->
+<div class="section">
+  <div class="section-title">04 · Programmatic API</div>
+  <p class="section-desc">通过 JS 直接控制状态、对话和动作。</p>
+  <div class="api-demo">
+    <div class="api-cat">
+      <div class="cat-interactive cat-idle" id="apiCat" style="width:140px" data-pc-skip></div>
+    </div>
+    <div class="api-buttons">
+      <button class="api-btn" onclick="apiCat.setState('idle')">setState('idle')</button>
+      <button class="api-btn" onclick="apiCat.setState('curious')">setState('curious')</button>
+      <button class="api-btn" onclick="apiCat.setState('alert')">setState('alert')</button>
+      <button class="api-btn" onclick="apiCat.setState('sleeping')">setState('sleeping')</button>
+      <button class="api-btn" onclick="apiCat.setState('walking')">setState('walking')</button>
+      <button class="api-btn" onclick="apiCat.happy()">happy() → 开心跳舞</button>
+      <button class="api-btn" onclick="apiCat.say('喵~ 你好呀!')">say('喵~ 你好呀!')</button>
+      <button class="api-btn" onclick="apiCat.say('★ LUCY')">say('★ LUCY')</button>
+    </div>
+  </div>
+  <div class="code-block">
+<span class="c">// 创建实例</span>
+<span class="k">const</span> cat = <span class="k">new</span> <span class="f">PixelCat</span>(<span class="s">'#apiCat'</span>, {
+  state: <span class="s">'idle'</span>,
+  size: <span class="s">'md'</span>,
+  autoCycle: <span class="k">false</span>,
+  idleSpeech: <span class="k">true</span>,
+  speeches: [<span class="s">'喵~'</span>, <span class="s">'好舒服~'</span>, <span class="s">'★ 好开心'</span>],
+  idlePhrases: [<span class="s">'...'</span>, <span class="s">'喵?'</span>, <span class="s">'~ zZ'</span>]
+});
+
+<span class="c">// API 调用</span>
+cat.<span class="f">setState</span>(<span class="s">'happy'</span>);      <span class="c">// 切换状态</span>
+cat.<span class="f">say</span>(<span class="s">'喵呜~'</span>);          <span class="c">// 显示对话气泡</span>
+cat.<span class="f">happy</span>();               <span class="c">// 触发开心跳舞</span>
+cat.<span class="f">setSize</span>(<span class="s">'lg'</span>);          <span class="c">// 修改尺寸</span>
+cat.<span class="f">setSpeeches</span>([...], [...]); <span class="c">// 更新台词</span>
+cat.<span class="f">destroy</span>();             <span class="c">// 销毁实例</span>
+  </div>
+</div>
+
+<!-- ===== QUICK START ===== -->
+<div class="section">
+  <div class="section-title">05 · Quick Start</div>
+  <p class="section-desc">三步集成，零依赖。</p>
+  <div class="code-block">
+<span class="c">&lt;!-- 1. 引入 CSS --&gt;</span>
+&lt;<span class="k">link</span> <span class="n">rel</span>=<span class="s">"stylesheet"</span> <span class="n">href</span>=<span class="s">"pixel-cat.css"</span>&gt;
+
+<span class="c">&lt;!-- 2. 放一个容器 --&gt;</span>
+&lt;<span class="k">div</span> <span class="n">class</span>=<span class="s">"cat-interactive cat-idle"</span>&gt;&lt;/<span class="k">div</span>&gt;
+
+<span class="c">&lt;!-- 3. 引入 JS，自动初始化 --&gt;</span>
+&lt;<span class="k">script</span> <span class="n">src</span>=<span class="s">"pixel-cat.js"</span>&gt;&lt;/<span class="k">script</span>&gt;
+  </div>
+  <div class="paw-trail-deco">
+    <div class="paw-print"></div>
+    <div class="paw-print"></div>
+    <div class="paw-print"></div>
+    <div class="paw-print"></div>
+    <div class="paw-print"></div>
+  </div>
+</div>
+
+<!-- ===== FOOTER ===== -->
+<div class="footer">
+  Pixel Cat v1.0.0 · MIT License · Made with ★ for LUCY
+</div>
+
+<script src="pixel-cat.js"></script>
+<script>
+  // Hero cat — auto cycle + idle speech
+  var heroCat = new PixelCat('#heroCat', {
+    state: 'idle',
+    autoCycle: true,
+    cycleInterval: 6000,
+    idleSpeech: true,
+    idleSpeechInterval: 8000
+  });
+
+  // Demo cat — full interactive (auto-init handles this, but explicit for clarity)
+  var demoCat = new PixelCat('#demoCat', {
+    state: 'idle',
+    idleSpeech: true
+  });
+
+  // API demo cat
+  var apiCat = new PixelCat('#apiCat', {
+    state: 'idle',
+    interactive: false,
+    eyeTrack: false
+  });
+
+  // Build state gallery
+  PixelCat.buildGallery('#stateGallery');
+
+  console.log('%c★ Pixel Cat Demo loaded', 'color:#fbbf24;font-weight:bold;font-size:14px');
+</script>
+
+</body>
+</html>
