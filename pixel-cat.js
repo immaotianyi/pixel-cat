@@ -1,6 +1,6 @@
 /* ============================================
    PIXEL CAT — 8-bit Interactive Pixel Cat
-   Version: 2.1.0 (enriched multi-part animations for all states/poses/emotes)
+   Version: 2.4.0 (decoupled timings + organic easing + compound micro-events)
    License: MIT
    ============================================
    A reusable, zero-dependency pixel cat component.
@@ -456,7 +456,9 @@
     this._speechTimer = null;
     this._cycleTimer = null;
     this._idleTimer = null;
+    this._lifeTimer = null;
     this._isInteracting = false;
+    this._isDestroyed = false;
 
     // Speak system state
     this._speakQueue = [];
@@ -632,6 +634,292 @@
         }
       }, this.idleSpeechInterval);
     }
+
+    // v2.3: Procedural life engine — spontaneous micro-behaviors
+    this._startProceduralLife();
+  };
+
+  /* ============================================
+     3.5 PRIVATE: PROCEDURAL LIFE ENGINE (v2.3)
+     Spontaneous micro-behaviors layered ON TOP of
+     existing CSS animations via Web Animations API
+     with composite:'add'. Breaks repetitive CSS loops
+     so each state feels alive and unpredictable.
+     NOT new states — just accent variations.
+     ============================================ */
+
+  PixelCat.prototype._startProceduralLife = function () {
+    var self = this;
+    if (this._lifeTimer) clearTimeout(this._lifeTimer);
+
+    function scheduleNext() {
+      // v2.4: Natural timing — 70% normal (1.2-3.5s), 20% quick burst (400-800ms), 10% long pause (4-6s)
+      var r = Math.random();
+      var delay;
+      if (r < 0.7) {
+        delay = 1200 + Math.random() * 2300;
+      } else if (r < 0.9) {
+        delay = 400 + Math.random() * 400;
+      } else {
+        delay = 4000 + Math.random() * 2000;
+      }
+      self._lifeTimer = setTimeout(function () {
+        if (!self._isInteracting && !self._isSpeaking && !self._isDestroyed && self.el) {
+          self._fireMicroEvent();
+        }
+        if (!self._isDestroyed && self.el) scheduleNext();
+      }, delay);
+    }
+    self._lifeTimer = setTimeout(function () {
+      if (!self._isInteracting && !self._isSpeaking) self._fireMicroEvent();
+      scheduleNext();
+    }, 2000 + Math.random() * 2000);
+  };
+
+  PixelCat.prototype._fireMicroEvent = function () {
+    var state = this.getState();
+    if (!state) return;
+
+    // v2.4: Expanded pools with COMBO events (chain existing accents)
+    var events = {
+      'cat-idle': ['earFlick', 'eyeDart', 'headTurn', 'lookAround', 'tailFlick', 'bodyShift', 'whiskerTwitch', 'comboIdle', 'comboRelax'],
+      'cat-curious': ['earFlick', 'eyeDart', 'sniff', 'whiskerTwitch', 'headTurn', 'comboCurious', 'comboSniff'],
+      'cat-alert': ['earRotate', 'eyeDart', 'scan', 'whiskerTwitch', 'comboAlert'],
+      'cat-sleeping': ['dreamTwitch', 'earFlick', 'pawTwitch', 'comboDream'],
+      'cat-walking': ['earFlick', 'eyeDart', 'headTurn', 'comboWalk'],
+      'cat-happy': ['earFlick', 'eyeDart', 'extraBounce', 'comboHappy']
+    };
+    var pool = events[state] || ['earFlick', 'eyeDart'];
+    var event = pool[Math.floor(Math.random() * pool.length)];
+    try { this['_accent_' + event](); } catch (e) { /* defensive */ }
+  };
+
+  /** Play one-shot accent via WAAPI with composite:add (layers on CSS anims) */
+  PixelCat.prototype._playAccent = function (selector, keyframes, options) {
+    var el = this.el.querySelector(selector);
+    if (!el) return;
+    try {
+      el.animate(keyframes, Object.assign({
+        composite: 'add', fill: 'none', easing: 'cubic-bezier(0.4,0,0.2,1)'
+      }, options || {}));
+    } catch (e) { /* WAAPI unsupported — graceful skip */ }
+  };
+
+  PixelCat.prototype._accent_earFlick = function () {
+    this._playAccent('.cat-ear-l', [
+      { transform: 'rotate(0deg)' }, { transform: 'rotate(-25deg)' },
+      { transform: 'rotate(-6deg)' }, { transform: 'rotate(-18deg)' }, { transform: 'rotate(0deg)' }
+    ], { duration: 500 });
+    this._playAccent('.cat-ear-r', [
+      { transform: 'rotate(0deg)' }, { transform: 'rotate(25deg)' },
+      { transform: 'rotate(6deg)' }, { transform: 'rotate(18deg)' }, { transform: 'rotate(0deg)' }
+    ], { duration: 500, delay: 80 });
+  };
+
+  PixelCat.prototype._accent_eyeDart = function () {
+    var dir = Math.random() > 0.5 ? 1 : -1;
+    var d = 5 + Math.random() * 5;
+    var kf = [
+      { transform: 'translate(0,0)' }, { transform: 'translate(' + (dir*d) + 'px,-2px)' },
+      { transform: 'translate(' + (dir*d*0.5) + 'px,2px)' }, { transform: 'translate(0,0)' }
+    ];
+    this._playAccent('.cat-pupil-l', kf, { duration: 700, easing: 'cubic-bezier(0.4,0,0.6,1)' });
+    this._playAccent('.cat-pupil-r', kf, { duration: 700, easing: 'cubic-bezier(0.4,0,0.6,1)' });
+  };
+
+  PixelCat.prototype._accent_headTurn = function () {
+    var dir = Math.random() > 0.5 ? 1 : -1;
+    this._playAccent('.cat-head', [
+      { transform: 'rotate(0deg) translateX(0)' },
+      { transform: 'rotate(' + (dir*15) + 'deg) translateX(' + (dir*4) + 'px)' },
+      { transform: 'rotate(' + (dir*8) + 'deg) translateX(' + (dir*2) + 'px)' },
+      { transform: 'rotate(' + (-dir*5) + 'deg) translateX(0)' },
+      { transform: 'rotate(0deg) translateX(0)' }
+    ], { duration: 1000 });
+  };
+
+  PixelCat.prototype._accent_lookAround = function () {
+    var kf = [
+      { transform: 'translate(0,0)' }, { transform: 'translate(-8px,0)' },
+      { transform: 'translate(-5px,-2px)' }, { transform: 'translate(8px,0)' },
+      { transform: 'translate(5px,-2px)' }, { transform: 'translate(0,0)' }
+    ];
+    this._playAccent('.cat-pupil-l', kf, { duration: 1500, easing: 'cubic-bezier(0.4,0,0.6,1)' });
+    this._playAccent('.cat-pupil-r', kf, { duration: 1500, easing: 'cubic-bezier(0.4,0,0.6,1)' });
+    this._playAccent('.cat-head', [
+      { transform: 'rotate(0deg)' }, { transform: 'rotate(-10deg)' },
+      { transform: 'rotate(-5deg)' }, { transform: 'rotate(10deg)' },
+      { transform: 'rotate(5deg)' }, { transform: 'rotate(0deg)' }
+    ], { duration: 1500, easing: 'cubic-bezier(0.4,0,0.6,1)' });
+  };
+
+  PixelCat.prototype._accent_tailFlick = function () {
+    this._playAccent('.cat-tail', [
+      { transform: 'rotate(0deg)' }, { transform: 'rotate(45deg)' },
+      { transform: 'rotate(20deg)' }, { transform: 'rotate(55deg)' },
+      { transform: 'rotate(30deg)' }, { transform: 'rotate(0deg)' }
+    ], { duration: 800 });
+  };
+
+  PixelCat.prototype._accent_bodyShift = function () {
+    var dir = Math.random() > 0.5 ? 1 : -1;
+    this._playAccent('.cat-body', [
+      { transform: 'translateX(0)' }, { transform: 'translateX(' + (dir*4) + 'px)' },
+      { transform: 'translateX(' + (dir*2) + 'px)' }, { transform: 'translateX(0)' }
+    ], { duration: 1000, easing: 'cubic-bezier(0.4,0,0.6,1)' });
+  };
+
+  PixelCat.prototype._accent_sniff = function () {
+    this._playAccent('.cat-head', [
+      { transform: 'translateY(0)' }, { transform: 'translateY(5px) rotate(4deg)' },
+      { transform: 'translateY(2px) rotate(2deg)' }, { transform: 'translateY(7px) rotate(5deg)' },
+      { transform: 'translateY(0)' }
+    ], { duration: 800 });
+    this._playAccent('.cat-whisker-l', [
+      { transform: 'rotate(0deg)' }, { transform: 'rotate(-14deg)' },
+      { transform: 'rotate(-5deg)' }, { transform: 'rotate(-10deg)' }, { transform: 'rotate(0deg)' }
+    ], { duration: 800 });
+    this._playAccent('.cat-whisker-r', [
+      { transform: 'rotate(0deg)' }, { transform: 'rotate(14deg)' },
+      { transform: 'rotate(5deg)' }, { transform: 'rotate(10deg)' }, { transform: 'rotate(0deg)' }
+    ], { duration: 800, delay: 50 });
+  };
+
+  PixelCat.prototype._accent_whiskerTwitch = function () {
+    this._playAccent('.cat-whisker-l', [
+      { transform: 'rotate(0deg)' }, { transform: 'rotate(-12deg)' },
+      { transform: 'rotate(-3deg)' }, { transform: 'rotate(-8deg)' }, { transform: 'rotate(0deg)' }
+    ], { duration: 500 });
+    this._playAccent('.cat-whisker-r', [
+      { transform: 'rotate(0deg)' }, { transform: 'rotate(12deg)' },
+      { transform: 'rotate(3deg)' }, { transform: 'rotate(8deg)' }, { transform: 'rotate(0deg)' }
+    ], { duration: 500, delay: 50 });
+  };
+
+  PixelCat.prototype._accent_earRotate = function () {
+    this._playAccent('.cat-ear-l', [
+      { transform: 'rotate(0deg)' }, { transform: 'rotate(-30deg)' },
+      { transform: 'rotate(-15deg)' }, { transform: 'rotate(-38deg)' }, { transform: 'rotate(0deg)' }
+    ], { duration: 600 });
+    this._playAccent('.cat-ear-r', [
+      { transform: 'rotate(0deg)' }, { transform: 'rotate(38deg)' },
+      { transform: 'rotate(22deg)' }, { transform: 'rotate(30deg)' }, { transform: 'rotate(0deg)' }
+    ], { duration: 600, delay: 100 });
+  };
+
+  PixelCat.prototype._accent_scan = function () {
+    this._playAccent('.cat-head', [
+      { transform: 'rotate(0deg)' }, { transform: 'rotate(-12deg)' },
+      { transform: 'rotate(-5deg)' }, { transform: 'rotate(12deg)' },
+      { transform: 'rotate(5deg)' }, { transform: 'rotate(0deg)' }
+    ], { duration: 1000 });
+    var ekf = [
+      { transform: 'translate(0,0)' }, { transform: 'translate(-8px,0)' },
+      { transform: 'translate(0,-2px)' }, { transform: 'translate(8px,0)' }, { transform: 'translate(0,0)' }
+    ];
+    this._playAccent('.cat-pupil-l', ekf, { duration: 1000 });
+    this._playAccent('.cat-pupil-r', ekf, { duration: 1000 });
+  };
+
+  PixelCat.prototype._accent_dreamTwitch = function () {
+    this._playAccent('.cat-body', [
+      { transform: 'scaleY(1)' }, { transform: 'scaleY(1.04) translateY(2px)' },
+      { transform: 'scaleY(1.02) translateY(1px)' }, { transform: 'scaleY(1)' }
+    ], { duration: 500 });
+    this._playAccent('.cat-ear-l', [
+      { transform: 'rotate(6deg)' }, { transform: 'rotate(18deg)' },
+      { transform: 'rotate(12deg)' }, { transform: 'rotate(6deg)' }
+    ], { duration: 500, delay: 100 });
+    this._playAccent('.cat-whisker-l', [
+      { transform: 'rotate(2deg)' }, { transform: 'rotate(10deg)' },
+      { transform: 'rotate(5deg)' }, { transform: 'rotate(2deg)' }
+    ], { duration: 500, delay: 200 });
+  };
+
+  PixelCat.prototype._accent_pawTwitch = function () {
+    this._playAccent('.cat-body', [
+      { transform: 'translateY(0)' }, { transform: 'translateY(-2px)' },
+      { transform: 'translateY(0)' }, { transform: 'translateY(-1px)' },
+      { transform: 'translateY(0)' }
+    ], { duration: 400 });
+  };
+
+  PixelCat.prototype._accent_extraBounce = function () {
+    this._playAccent('.cat-body', [
+      { transform: 'translateY(0)' }, { transform: 'translateY(-12px)' },
+      { transform: 'translateY(0)' }
+    ], { duration: 400, easing: 'cubic-bezier(0.34,1.56,0.64,1)' });
+  };
+
+  /* ============================================
+     3.7 COMPOUND MICRO-EVENTS (v2.4)
+     Chain EXISTING accents together for richer,
+     multi-part micro-behaviors. No new accent
+     types — just natural combinations.
+     ============================================ */
+
+  // Idle: tail flick + body shift (lazy repositioning)
+  PixelCat.prototype._accent_comboIdle = function () {
+    this._accent_tailFlick();
+    var self = this;
+    setTimeout(function () { self._accent_bodyShift(); }, 200);
+  };
+
+  // Idle: slow blink + ear flick + whisker twitch (full relaxation moment)
+  PixelCat.prototype._accent_comboRelax = function () {
+    this._playAccent('.cat-ear-l', [
+      { transform: 'rotate(0deg)' }, { transform: 'rotate(-15deg)' },
+      { transform: 'rotate(0deg)' }
+    ], { duration: 800, easing: 'cubic-bezier(0.4,0,0.2,1)' });
+    this._playAccent('.cat-ear-r', [
+      { transform: 'rotate(0deg)' }, { transform: 'rotate(15deg)' },
+      { transform: 'rotate(0deg)' }
+    ], { duration: 800, delay: 100, easing: 'cubic-bezier(0.4,0,0.2,1)' });
+    this._accent_whiskerTwitch();
+  };
+
+  // Curious: ear flick + eye dart + head turn (full attention sequence)
+  PixelCat.prototype._accent_comboCurious = function () {
+    this._accent_earFlick();
+    var self = this;
+    setTimeout(function () { self._accent_eyeDart(); }, 150);
+    setTimeout(function () { self._accent_headTurn(); }, 400);
+  };
+
+  // Curious: sniff + whisker twitch (investigating scent)
+  PixelCat.prototype._accent_comboSniff = function () {
+    this._accent_sniff();
+    var self = this;
+    setTimeout(function () { self._accent_whiskerTwitch(); }, 300);
+  };
+
+  // Alert: ear rotate + scan (full threat assessment)
+  PixelCat.prototype._accent_comboAlert = function () {
+    this._accent_earRotate();
+    var self = this;
+    setTimeout(function () { self._accent_scan(); }, 200);
+  };
+
+  // Sleeping: dream twitch + paw twitch + ear flick (dreaming sequence)
+  PixelCat.prototype._accent_comboDream = function () {
+    this._accent_dreamTwitch();
+    var self = this;
+    setTimeout(function () { self._accent_pawTwitch(); }, 300);
+    setTimeout(function () { self._accent_earFlick(); }, 600);
+  };
+
+  // Walking: ear flick + head turn (checking surroundings while moving)
+  PixelCat.prototype._accent_comboWalk = function () {
+    this._accent_earFlick();
+    var self = this;
+    setTimeout(function () { self._accent_headTurn(); }, 200);
+  };
+
+  // Happy: extra bounce + ear flick (joy burst)
+  PixelCat.prototype._accent_comboHappy = function () {
+    this._accent_extraBounce();
+    var self = this;
+    setTimeout(function () { self._accent_earFlick(); }, 100);
   };
 
   /* ----- 3.4 PRIVATE: PARTICLE SYSTEM ----- */
@@ -1308,6 +1596,6 @@
     PixelCat.autoInit();
   }
 
-  console.log('%c★ PixelCat v2.1.0 loaded', 'color:#f59e0b;font-weight:bold');
+  console.log('%c★ PixelCat v2.4.0 loaded', 'color:#f59e0b;font-weight:bold');
 
 })(typeof window !== 'undefined' ? window : this);
